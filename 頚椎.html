@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>頚椎所見入力</title>
+    <script>
+        function copyToClipboard() {
+            let output = "〈頚椎〉\n";
+            
+            // ROM
+            output += "ROM\n";
+            document.querySelectorAll('.rom input:checked').forEach(el => {
+                output += el.name + "：" + el.value + "\n";
+            });
+            
+            // その他チェック項目
+            document.querySelectorAll('.checkbox-group input:checked').forEach(el => {
+                output += el.name + "：" + el.value + "\n";
+            });
+            
+            // 数値入力
+            let gripRight = document.getElementById("grip-right").value;
+            let gripLeft = document.getElementById("grip-left").value;
+            if (gripRight) output += "握力 右: " + gripRight + "kg\n";
+            if (gripLeft) output += "握力 左: " + gripLeft + "kg\n";
+            
+            document.querySelectorAll('.mmt input').forEach(el => {
+                if (el.value) output += el.name + "：" + el.value + "\n";
+            });
+            
+            // クリップボードにコピー
+            navigator.clipboard.writeText(output).then(() => {
+                alert("入力内容をクリップボードにコピーしました！");
+            });
+        }
+    </script>
+</head>
+<body>
+    <h2>頚椎所見入力</h2>
+    
+    <fieldset class="rom">
+        <legend>ROM</legend>
+        <label>屈曲：</label>
+        <input type="radio" name="屈曲" value="正常">正常
+        <input type="radio" name="屈曲" value="制限あり">制限あり
+        <input type="radio" name="屈曲" value="疼痛あり">疼痛あり<br>
+        
+        <label>伸展：</label>
+        <input type="radio" name="伸展" value="正常">正常
+        <input type="radio" name="伸展" value="制限あり">制限あり
+        <input type="radio" name="伸展" value="疼痛あり">疼痛あり<br>
+        
+        <label>回旋 右：</label>
+        <input type="radio" name="回旋右" value="正常">正常
+        <input type="radio" name="回旋右" value="制限あり">制限あり
+        <input type="radio" name="回旋右" value="疼痛あり">疼痛あり<br>
+        
+        <label>回旋 左：</label>
+        <input type="radio" name="回旋左" value="正常">正常
+        <input type="radio" name="回旋左" value="制限あり">制限あり
+        <input type="radio" name="回旋左" value="疼痛あり">疼痛あり<br>
+    </fieldset>
+    
+    <fieldset class="checkbox-group">
+        <legend>その他</legend>
+        <label>巧緻障害：</label>
+        <input type="radio" name="巧緻障害" value="正常">正常
+        <input type="radio" name="巧緻障害" value="有">有
+        <br>
+        <label>10秒テスト：</label>
+        <input type="radio" name="10秒テスト" value="正常">正常
+        <input type="radio" name="10秒テスト" value="遅延">遅延
+        <br>
+        <label>知覚：</label>
+        <input type="radio" name="知覚" value="正常">正常
+        <input type="radio" name="知覚" value="異常">異常
+        <br>
+        <label>Jackson head compression test：</label>
+        <input type="radio" name="Jackson head compression test" value="+">+
+        <input type="radio" name="Jackson head compression test" value="-">-
+        <br>
+        <label>Spurling test：</label>
+        <input type="radio" name="Spurling test" value="+">+
+        <input type="radio" name="Spurling test" value="-">-
+    </fieldset>
+    
+    <fieldset>
+        <legend>筋力</legend>
+        握力： 右 <input type="number" id="grip-right" class="mmt" name="握力右"> kg
+        左 <input type="number" id="grip-left" class="mmt" name="握力左"> kg
+    </fieldset>
+    
+    <fieldset class="mmt">
+        <legend>MMT</legend>
+        <label>肘関節 右 屈曲：</label> <input type="number" name="肘関節右屈曲"> 
+        <label>伸展：</label> <input type="number" name="肘関節右伸展"><br>
+        
+        <label>肘関節 左 屈曲：</label> <input type="number" name="肘関節左屈曲"> 
+        <label>伸展：</label> <input type="number" name="肘関節左伸展"><br>
+        
+        <label>手関節 右 掌屈：</label> <input type="number" name="手関節右掌屈"> 
+        <label>背屈：</label> <input type="number" name="手関節右背屈"><br>
+        
+        <label>手関節 左 掌屈：</label> <input type="number" name="手関節左掌屈"> 
+        <label>背屈：</label> <input type="number" name="手関節左背屈"><br>
+    </fieldset>
+    
+    <fieldset>
+        <legend>反射</legend>
+        <label>腕橈骨筋反射：</label>
+        <input type="radio" name="腕橈骨筋反射" value="正常">正常
+        <input type="radio" name="腕橈骨筋反射" value="亢進">亢進
+        <input type="radio" name="腕橈骨筋反射" value="低下">低下<br>
+        
+        <label>上腕三頭筋腱反射：</label>
+        <input type="radio" name="上腕三頭筋腱反射" value="正常">正常
+        <input type="radio" name="上腕三頭筋腱反射" value="亢進">亢進
+        <input type="radio" name="上腕三頭筋腱反射" value="低下">低下<br>
+    </fieldset>
+    
+    <button onclick="copyToClipboard()">クリップボードにコピー</button>
+</body>
+</html>

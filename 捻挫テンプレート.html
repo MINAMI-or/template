@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>足関節捻挫 所見入力フォーム</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    h2 { margin-top: 30px; }
+    .section { margin-bottom: 20px; }
+    label { margin-right: 10px; }
+    .group { margin-bottom: 10px; }
+    .side-label { display: inline-block; width: 60px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>足関節捻挫 所見入力フォーム</h1>
+
+  <form id="examForm">
+    <div class="section">
+      <h2>対象側の選択</h2>
+      <label><input type="radio" name="side" value="右">右</label>
+      <label><input type="radio" name="side" value="左">左</label>
+    </div>
+
+    <div class="section">
+      <h2>圧痛・腫脹・皮下出血</h2>
+      <div id="findings"></div>
+    </div>
+
+    <div class="section">
+      <h2>エコー所見</h2>
+      <div class="group">
+        <label>前脛腓靱帯：</label>
+        <input type="radio" name="echo_atfl" value="正常">正常
+        <input type="radio" name="echo_atfl" value="部分断裂">部分断裂
+        <input type="radio" name="echo_atfl" value="断裂">断裂
+      </div>
+      <div class="group">
+        <label>二分靭帯：</label>
+        <input type="radio" name="echo_bifur" value="正常">正常
+        <input type="radio" name="echo_bifur" value="部分断裂">部分断裂
+        <input type="radio" name="echo_bifur" value="断裂">断裂
+      </div>
+    </div>
+
+    <button type="button" onclick="copyToClipboard()">クリップボードにコピー</button>
+  </form>
+
+  <script>
+    const items = [
+      "関節腫脹", "外果圧痛", "前脛腓靱帯圧痛", "前距腓靱帯圧痛",
+      "踵腓骨靭帯圧痛", "二分靭帯圧痛", "第５中足骨圧痛", "内果圧痛",
+      "外脛骨", "足根洞圧痛",
+      "皮下出血 外側", "皮下出血 内側", "皮下出血 足背"
+    ];
+
+    const findingsDiv = document.getElementById("findings");
+
+    items.forEach(item => {
+      const group = document.createElement("div");
+      group.className = "group";
+      const label = document.createElement("label");
+      label.textContent = item + "：";
+      group.appendChild(label);
+
+      ["有", "無"].forEach(val => {
+        const id = `${item}_${val}`;
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = item;
+        input.value = val;
+        input.id = id;
+
+        const lbl = document.createElement("label");
+        lbl.htmlFor = id;
+        lbl.textContent = val;
+
+        group.appendChild(input);
+        group.appendChild(lbl);
+      });
+
+      findingsDiv.appendChild(group);
+    });
+
+    function copyToClipboard() {
+      const form = document.getElementById("examForm");
+      const data = [];
+
+      // 対象側
+      const side = form.querySelector("input[name='side']:checked");
+      const sideText = side ? side.value : "未選択";
+      data.push(`対象側：${sideText}`);
+
+      // 所見
+      items.forEach(item => {
+        const checked = form.querySelector(`input[name='${item}']:checked`);
+        if (checked) {
+          data.push(`${item}：${checked.value}`);
+        }
+      });
+
+      // エコー
+      const echo1 = form.querySelector("input[name='echo_atfl']:checked");
+      if (echo1) data.push(`前脛腓靱帯：${echo1.value}`);
+
+      const echo2 = form.querySelector("input[name='echo_bifur']:checked");
+      if (echo2) data.push(`二分靭帯：${echo2.value}`);
+
+      const result = data.join("\n");
+      navigator.clipboard.writeText(result).then(() => {
+        alert("クリップボードにコピーしました！");
+      });
+    }
+  </script>
+</body>
+</html>
