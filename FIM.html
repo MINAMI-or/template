@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8"> <!-- 文字化け防止 -->
+    <title>FIM（機能的自立度評価表）</title>
+    <script>
+        function generateFIMReport() {
+            let motorCategories = ["食事", "整容", "更衣（上半身）", "更衣（下半身）", "トイレ動作", "入浴", 
+                                   "排尿管理", "排便管理", "ベッド・椅子・車椅子移乗", "トイレ移乗", "浴室移乗", 
+                                   "歩行/車椅子", "階段"];
+            let cognitiveCategories = ["理解", "表出", "社会的交流", "問題解決", "記憶"];
+
+            let output = "【FIM評価】\n";
+            let motorTotal = 0;
+            let cognitiveTotal = 0;
+
+            // 運動項目の計算
+            motorCategories.forEach((category, index) => {
+                let selected = document.querySelector(`input[name="fim${index}"]:checked`);
+                if (selected) {
+                    let score = parseInt(selected.value);
+                    motorTotal += score;
+                    output += `✔︎ ${category}: ${score}点\n`;
+                } else {
+                    output += `✔︎ ${category}: 未入力\n`;
+                }
+            });
+
+            // 認知項目の計算
+            cognitiveCategories.forEach((category, index) => {
+                let actualIndex = motorCategories.length + index;
+                let selected = document.querySelector(`input[name="fim${actualIndex}"]:checked`);
+                if (selected) {
+                    let score = parseInt(selected.value);
+                    cognitiveTotal += score;
+                    output += `✔︎ ${category}: ${score}点\n`;
+                } else {
+                    output += `✔︎ ${category}: 未入力\n`;
+                }
+            });
+
+            // 合計スコアを追加
+            let totalScore = motorTotal + cognitiveTotal;
+            output += "\n【FIMスコア合計】\n";
+            output += `✅ 運動項目小計: ${motorTotal}点 / 91点\n`;
+            output += `✅ 認知項目小計: ${cognitiveTotal}点 / 35点\n`;
+            output += `✅ 合計スコア: ${totalScore}点 / 126点\n`;
+
+            // 出力エリアに反映
+            document.getElementById("output").innerText = output;
+
+            // クリップボードにコピー
+            copyToClipboard(output);
+        }
+
+        // クリップボードにコピーする関数
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("FIM評価をクリップボードにコピーしました！");
+            }).catch(err => {
+                alert("クリップボードへのコピーに失敗しました: " + err);
+            });
+        }
+    </script>
+</head>
+<body>
+
+    <h1>FIM（機能的自立度評価表）</h1>
+    <p><strong>「できるADL」ではなく「しているADL」で入力</strong></p>
+    
+    <h2>運動項目（13項目）</h2>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>点数</th><th>介助者</th><th>手助け</th><th>手助けの程度</th>
+        </tr>
+        <tr><td>7</td><td>不要</td><td>不要</td><td>自立</td></tr>
+        <tr><td>6</td><td>不要</td><td>不要</td><td>時間がかかる、補助具が必要、安全性の配慮</td></tr>
+        <tr><td>5</td><td>必要</td><td>不要</td><td>監視、指示、促し</td></tr>
+        <tr><td>4</td><td>必要</td><td>不要</td><td>75％以上、90％以下自分で行う</td></tr>
+        <tr><td>3</td><td>必要</td><td>必要</td><td>50％以上､75％未満自分で行う</td></tr>
+        <tr><td>2</td><td>必要</td><td>必要</td><td>25％以上、50％未満自分で行う</td></tr>
+        <tr><td>1</td><td>必要</td><td>必要</td><td>25％未満しか自分で行わない</td></tr>
+    </table>
+
+    <h2>認知項目（5項目）</h2>
+    <table border="1" cellpadding="5">
+        <tr>
+            <th>点数</th><th>介助者</th><th>手助け</th><th>手助けの程度</th>
+        </tr>
+        <tr><td>7</td><td>不要</td><td>不要</td><td>自立</td></tr>
+        <tr><td>6</td><td>不要</td><td>不要</td><td>時間がかかる、補助具が必要、安全性の配慮</td></tr>
+        <tr><td>5</td><td>必要</td><td>不要</td><td>監視、指示、促し</td></tr>
+        <tr><td>4</td><td>必要</td><td>不要</td><td>75％以上、90％以下自分で行う</td></tr>
+        <tr><td>3</td><td>必要</td><td>必要</td><td>50％以上､75％未満自分で行う</td></tr>
+        <tr><td>2</td><td>必要</td><td>必要</td><td>25％以上、50％未満自分で行う</td></tr>
+        <tr><td>1</td><td>必要</td><td>必要</td><td>25％未満しか自分で行わない</td></tr>
+    </table>
+
+    <h2>FIM評価入力</h2>
+    <form>
+        <table border="1" cellpadding="5">
+            <tr>
+                <th>項目</th>
+                <th>1</th>
+                <th>2</th>
+                <th>3</th>
+                <th>4</th>
+                <th>5</th>
+                <th>6</th>
+                <th>7</th>
+            </tr>
+            <script>
+                let fimCategories = [
+                    "食事", "整容", "更衣（上半身）", "更衣（下半身）", "トイレ動作", "入浴", "排尿管理", "排便管理",
+                    "ベッド・椅子・車椅子移乗", "トイレ移乗", "浴室移乗", "歩行/車椅子", "階段",
+                    "理解", "表出", "社会的交流", "問題解決", "記憶"
+                ];
+                
+                fimCategories.forEach((category, index) => {
+                    document.write("<tr>");
+                    document.write(`<td>${category}</td>`);
+                    for (let i = 1; i <= 7; i++) {
+                        document.write(`<td><input type="radio" name="fim${index}" value="${i}"></td>`);
+                    }
+                    document.write("</tr>");
+                });
+            </script>
+        </table>
+    </form>
+
+    <button onclick="generateFIMReport()">FIM評価を出力 & クリップボードにコピー</button>
+
+    <h3>出力:</h3>
+    <pre id="output"></pre>
+
+</body>
+</html>
