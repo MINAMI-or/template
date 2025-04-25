@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>理学所見入力フォーム</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    .section { margin-bottom: 30px; }
+    label { display: block; margin: 8px 0 4px; }
+    input[type="text"], input[type="number"], select, textarea { width: 250px; padding: 6px; margin-bottom: 10px; }
+    input[type="number"] { width: 100px; }
+    .radio-group, .checkbox-group { margin-bottom: 10px; }
+    button { padding: 10px 20px; margin-right: 10px; cursor: pointer; }
+    h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <h1>理学所見入力フォーム</h1>
+
+  <form id="examForm" action="#" onsubmit="event.preventDefault(); saveForm();">
+    <!-- 可動域 -->
+    <div class="section">
+      <h2>可動域</h2>
+      <label>左右</label>
+      <div class="radio-group">
+        <input type="radio" name="左右" value="右" required>右
+        <input type="radio" name="左右" value="左">左
+      </div>
+      <label>掌屈 (正常値: 70°)</label>
+      自動<input type="number" name="掌屈_自動" min="0" max="90">°
+      他動<input type="number" name="掌屈_他動" min="0" max="90">°
+      <label>背屈 (正常値: 70°)</label>
+      自動<input type="number" name="背屈_自動" min="0" max="90">°
+      他動<input type="number" name="背屈_他動" min="0" max="90">°
+      <label>回内 (正常値: 90°)</label>
+      自動<input type="number" name="回内_自動" min="0" max="120">°
+      他動<input type="number" name="回内_他動" min="0" max="120">°
+      <label>回外 (正常値: 90°)</label>
+      自動<input type="number" name="回外_自動" min="0" max="120">°
+      他動<input type="number" name="回外_他動" min="0" max="120">°
+    </div>
+
+    <!-- 視診・触診所見 -->
+    <div class="section">
+      <h2>視診・触診所見</h2>
+      <label>腫脹</label>
+      <div class="radio-group">
+        <input type="radio" name="腫脹" value="あり">あり
+        <input type="radio" name="腫脹" value="なし">なし
+      </div>
+      <input type="text" name="腫脹部位" placeholder="部位">
+
+      <label>熱感</label>
+      <div class="radio-group">
+        <input type="radio" name="熱感" value="あり">あり
+        <input type="radio" name="熱感" value="なし">なし
+      </div>
+      <input type="text" name="熱感部位" placeholder="部位">
+
+      <label>変形</label>
+      <div class="radio-group">
+        <input type="radio" name="変形" value="あり">あり
+        <input type="radio" name="変形" value="なし">なし
+      </div>
+      <input type="text" name="変形部位" placeholder="部位">
+
+      <label>皮下出血</label>
+      <div class="radio-group">
+        <input type="radio" name="皮下出血" value="あり">あり
+        <input type="radio" name="皮下出血" value="なし">なし
+      </div>
+      <input type="text" name="皮下出血部位" placeholder="部位">
+    </div>
+
+    <!-- 指の所見 -->
+    <div class="section">
+      <h2>指の所見</h2>
+      <label>左右</label>
+      <div class="radio-group">
+        <input type="radio" name="指左右" value="右">右
+        <input type="radio" name="指左右" value="左">左
+      </div>
+      <label>指と関節選択</label>
+      <div class="checkbox-group">
+        <input type="checkbox" name="指部位[]" value="母指">母指
+        <input type="checkbox" name="指部位[]" value="示指">示指
+        <input type="checkbox" name="指部位[]" value="中指">中指
+        <input type="checkbox" name="指部位[]" value="環指">環指
+        <input type="checkbox" name="指部位[]" value="小指">小指<br>
+        <input type="checkbox" name="関節部位[]" value="MP">MP
+        <input type="checkbox" name="関節部位[]" value="PIP">PIP
+        <input type="checkbox" name="関節部位[]" value="DIP">DIP
+      </div>
+      <label>腫脹</label>
+      <div class="radio-group">
+        <input type="radio" name="指腫脹" value="あり">あり
+        <input type="radio" name="指腫脹" value="なし">なし
+      </div>
+      <label>熱感</label>
+      <div class="radio-group">
+        <input type="radio" name="指熱感" value="あり">あり
+        <input type="radio" name="指熱感" value="なし">なし
+      </div>
+      <label>皮下出血</label>
+      <div class="radio-group">
+        <input type="radio" name="指皮下出血" value="あり">あり
+        <input type="radio" name="指皮下出血" value="なし">なし
+      </div>
+      <label>変形</label>
+      <div class="radio-group">
+        <input type="radio" name="指変形" value="あり">あり
+        <input type="radio" name="指変形" value="なし">なし
+      </div>
+    </div>
+
+    <!-- 圧痛 -->
+    <div class="section">
+      <h2>圧痛</h2>
+      <label>橈骨遠位端</label>
+      <div class="radio-group">
+        <input type="radio" name="橈骨遠位端" value="あり">あり
+        <input type="radio" name="橈骨遠位端" value="なし">なし
+      </div>
+      <label>舟状骨</label>
+      <div class="radio-group">
+        <input type="radio" name="舟状骨" value="あり">あり
+        <input type="radio" name="舟状骨" value="なし">なし
+      </div>
+      <label>TFCC部</label>
+      <div class="radio-group">
+        <input type="radio" name="TFCC部" value="あり">あり
+        <input type="radio" name="TFCC部" value="なし">なし
+      </div>
+      <label>その他</label>
+      <input type="text" name="圧痛その他" placeholder="その他">
+    </div>
+
+    <!-- 特殊検査 -->
+    <div class="section">
+      <h2>特殊検査</h2>
+      <h3>手根管症候群</h3>
+      <label>Phalen test</label>
+      <div class="radio-group">
+        <input type="radio" name="Phalen_test" value="陽性">陽性
+        <input type="radio" name="Phalen_test" value="陰性">陰性
+      </div>
+      <label>Tinel徴候</label>
+      <div class="radio-group">
+        <input type="radio" name="Tinel徴候" value="陽性">陽性
+        <input type="radio" name="Tinel徴候" value="陰性">陰性
+      </div>
+      <label>母指球萎縮</label>
+      <div class="radio-group">
+        <input type="radio" name="母指球萎縮" value="あり">あり
+        <input type="radio" name="母指球萎縮" value="なし">なし
+      </div>
+
+      <h3>de Quervain腱鞘炎</h3>
+      <label>Finkelstein test</label>
+      <div class="radio-group">
+        <input type="radio" name="Finkelstein_test" value="陽性">陽性
+        <input type="radio" name="Finkelstein_test" value="陰性">陰性
+      </div>
+
+      <h3>ばね指</h3>
+      <label>どの指</label>
+      <div class="radio-group">
+        <input type="radio" name="ばね指_指" value="母指">母指
+        <input type="radio" name="ばね指_指" value="示指">示指
+        <input type="radio" name="ばね指_指" value="中指">中指
+        <input type="radio" name="ばね指_指" value="環指">環指
+        <input type="radio" name="ばね指_指" value="小指">小指
+      </div>
+      <label>腱鞘肥厚</label>
+      <div class="radio-group">
+        <input type="radio" name="腱鞘肥厚" value="あり">あり
+        <input type="radio" name="腱鞘肥厚" value="なし">なし
+      </div>
+      <label>弾発現象</label>
+      <div class="radio-group">
+        <input type="radio" name="弾発現象" value="あり">あり
+        <input type="radio" name="弾発現象" value="なし">なし
+      </div>
+
+      <h3>TFCC損傷</h3>
+      <label>Squeeze test</label>
+      <div class="radio-group">
+        <input type="radio" name="Squeeze_test" value="陽性">陽性
+        <input type="radio" name="Squeeze_test" value="陰性">陰性
+      </div>
+    </div>
+
+    <button type="submit">保存（コピー）</button>
+    <button type="reset">リセット</button>
+  </form>
+
+  <script>
+    function saveForm() {
+      const form = document.getElementById('examForm');
+      const formData = new FormData(form);
+      let output = '手の所見\n\n';
+      for (const [key, value] of formData.entries()) {
+        if (value) {
+          output += `${key.replace('[]','')}: ${value}\n`;
+        }
+      }
+      navigator.clipboard.writeText(output)
+        .then(() => alert('入力内容をクリップボードにコピーしました！'))
+        .catch(err => alert('コピーに失敗しました: ' + err));
+    }
+  </script>
+
+</body>
+</html>
