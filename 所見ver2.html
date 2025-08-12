@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>医療所見入力フォーム</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --gap: 8px;
+    --bd: #d7dbe0;
+    --fg: #222;
+    --muted:#666;
+  }
+  body{
+    font-family: -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,"ヒラギノ角ゴ ProN","Hiragino Kaku Gothic ProN","Noto Sans JP","游ゴシック体",YuGothic,Meiryo,sans-serif;
+    color: var(--fg);
+    margin: 20px;
+    line-height: 1.5;
+  }
+  h1{ font-size: 20px; margin: 0 0 10px;}
+  .note{ color: var(--muted); font-size: 12px; margin-bottom: 16px;}
+  fieldset{
+    border: 1px solid var(--bd);
+    border-radius: 8px;
+    padding: 10px 12px 14px;
+    margin: 16px 0;
+  }
+  legend{ padding: 0 6px; font-weight: 600; }
+  .section-title{
+    font-weight: 700; margin: 20px 0 6px;
+    border-left: 4px solid #6ca0ff; padding-left: 8px;
+  }
+  .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:6px 0; }
+  .pair{
+    display:grid; grid-template-columns: 1fr 1fr; gap:8px; align-items:center;
+  }
+  /* 右入力を左側に、左入力を右側に表示（左右反転レイアウト） */
+  .pair .right { order: 1; }
+  .pair .left  { order: 2; text-align: right; }
+  .pair label{ display:inline-flex; align-items:center; gap:6px; }
+  .group{
+    border: 1px dashed var(--bd);
+    border-radius: 6px; padding: 8px; margin: 6px 0 10px; background:#fafbfc;
+  }
+  .group > .group-title{ font-weight: 600; margin-bottom: 6px; color:#333; }
+  .radio-list, .inline{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .inline input[type="number"]{ width: 6em; }
+  .controls{ display:flex; gap:10px; align-items:center; margin: 14px 0 6px; flex-wrap: wrap; }
+  button{
+    padding: 8px 12px; border-radius: 6px; border: 1px solid var(--bd);
+    background: #f3f4f6; cursor: pointer;
+  }
+  button:hover{ background:#e9eef9; }
+  textarea{
+    width: 100%; min-height: 180px; padding: 10px; border-radius: 6px;
+    border: 1px solid var(--bd); font-family: inherit; line-height: 1.6;
+  }
+  .hint{ font-size: 12px; color: #666; margin-top: 6px; }
+  .badge{ display:inline-block; padding:2px 6px; border-radius:999px; font-size:11px; background:#eef2ff; border:1px solid #c7d2fe; }
+</style>
+</head>
+<body>
+  <h1>医療所見入力フォーム</h1>
+  <p class="note">
+    ※ 右側の入力（右手/右足など）は画面<strong>左側</strong>、左側の入力は画面<strong>右側</strong>に表示しています（左右反転レイアウト）。<br>
+    ※ 入力を変更すると自動で出力が更新されます。未入力の場合は「入力がありません」と表示します。
+  </p>
+
+  <div id="form-root"></div>
+
+  <div class="controls">
+    <button id="generateBtn" type="button" title="現在の入力からテキストを生成">テキスト再生成</button>
+    <button id="copyBtn" type="button" title="出力テキストをコピー">コピー</button>
+    <button id="clearBtn" type="button" title="全入力を初期化して出力をクリア">フォームクリア</button>
+    <span class="badge">左右ペア＝1行／単独＝カテゴリ内で1行集約</span>
+  </div>
+  <textarea id="output" readonly>入力がありません</textarea>
+  <div class="hint">例）〈頚椎〉 ROM 屈曲：正常　　伸展：制限あり ／ 筋力 握力 右: 30kg　　左: 28kg</div>
+
+<script>
+/* =========================
+ * 設定
+ * ========================= */
+const SEP = "　　"; // 全角スペース2つ
+const excludeKeys = new Set(["知覚"]); // 出力除外
+
+/* =========================
+ * スキーマ（プロンプト準拠）
+ * ========================= */
+const schema = [
+  /* 颈椎 */
+  {
+    partLabel: "〈頚椎〉",
+    fieldsets: [
+      { legend: "ROM（関節可動域）", categoryKey: "ROM",
+        items: [
+          { type: "radio", key: "屈曲", options: ["正常","制限あり","疼痛あり"] },
+          { type: "radio", key: "伸展", options: ["正常","制限あり","疼痛あり"] },
+          { type: "radio", key: "回旋（右）", options: ["正常","制限あり","疼痛あり"] },
+          { type: "radio", key: "回旋（左）", options: ["正常","制限あり","疼痛あり"] },
+          { type: "radio", key: "知覚", options: ["正常","低下","過敏"] }, // 除外
+        ] },
+      { legend: "筋力", categoryKey: "筋力",
+        groups: [
+          { title:"握力", items:[ { type:"pairNumber", key:"握力", unit:"kg", step:"0.1" } ] }
+        ] },
+      { legend: "MMT（徒手筋力テスト）", categoryKey: "MMT",
+        items: [
+          { type: "mmtNum", key: "肘関節右屈曲", min:0, max:5, step:"1"},
+          { type: "mmtNum", key: "肘関節右伸展", min:0, max:5, step:"1"},
+          { type: "mmtNum", key: "肘関節左屈曲", min:0, max:5, step:"1"},
+          { type: "mmtNum", key: "肘関節左伸展", min:0, max:5, step:"1"},
+        ] },
+      { legend: "反射", categoryKey: "反射",
+        items: [
+          { type: "radio", key: "腕橈骨筋反射", options:["正常","亢進","低下"] },
+          { type: "radio", key: "上腕三頭筋腱反射", options:["正常","亢進","低下"] },
+          { type: "radio", key: "知覚障害", options:["なし","右上肢","左上肢","両上肢"] },
+          { type: "radio", key: "しびれ", options:["なし","右上肢","左上肢","両上肢"] },
+          { type: "radio", key: "感覚過敏", options:["なし","右上肢","左上肢","両上肢"] },
+        ] },
+      { legend: "特殊テスト", categoryKey: "特殊テスト",
+        items: [
+          { type:"radio", key:"Jackson head compression test", options: ["+","-"]},
+          { type:"radio", key:"Spurling test", options: ["+","-"]},
+        ] },
+    ]
+  },
+
+  /* 肩 */
+  {
+    partLabel: "〈肩〉",
+    fieldsets: [
+      { legend: "ROM", categoryKey: "ROM",
+        groups: [
+          { title:"右（屈曲）", items:[ { type:"number+pain", key:"右 屈曲", unit:"°", min:0, max:180, step:"1", painKey:"右 屈曲 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"右（外転）", items:[ { type:"number+pain", key:"右 外転", unit:"°", min:0, max:180, step:"1", painKey:"右 外転 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"右（伸展）", items:[ { type:"number+pain", key:"右 伸展", unit:"°", min:0, max:60, step:"1", painKey:"右 伸展 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"左（屈曲）", items:[ { type:"number+pain", key:"左 屈曲", unit:"°", min:0, max:180, step:"1", painKey:"左 屈曲 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"左（外転）", items:[ { type:"number+pain", key:"左 外転", unit:"°", min:0, max:180, step:"1", painKey:"左 外転 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"左（伸展）", items:[ { type:"number+pain", key:"左 伸展", unit:"°", min:0, max:60, step:"1", painKey:"左 伸展 疼痛", painOptions:["疼痛あり","疼痛なし"] } ] },
+        ] },
+      { legend: "圧痛", categoryKey: "圧痛",
+        items: [
+          { type:"singleRadio", key:"右上腕二頭筋腱", options:["あり","なし"]},
+          { type:"singleRadio", key:"左上腕二頭筋腱", options:["あり","なし"]},
+        ] },
+      { legend: "特殊テスト（腱板断裂）", categoryKey: "特殊テスト",
+        items: [
+          { type:"pairRadio", key:"Neer テスト", options:["+","-"] },
+          { type:"pairRadio", key:"Hawkins テスト", options:["+","-"] },
+          { type:"pairRadio", key:"Drop arm テスト", options:["+","-"] },
+          { type:"pairRadio", key:"Painful Arc", options:["+","-"] },
+        ] },
+    ]
+  },
+
+  /* 肘 */
+  {
+    partLabel: "〈肘〉",
+    fieldsets: [
+      { legend: "ROM", categoryKey: "ROM",
+        groups: [
+          { title:"屈曲", items: [ { type:"pairNumPain", key:"屈曲", unit:"°", min:0, max:150, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"伸展", items: [ { type:"pairNumPain", key:"伸展", unit:"°", min:0, max:10, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+        ] },
+    ]
+  },
+
+  /* 手関節 */
+  {
+    partLabel: "〈手関節〉",
+    fieldsets: [
+      { legend: "ROM", categoryKey: "ROM",
+        groups: [
+          { title:"掌屈", items:[ {type:"pairNumPain", key:"掌屈", unit:"°", min:0, max:80, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"背屈", items:[ {type:"pairNumPain", key:"背屈", unit:"°", min:0, max:70, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"回内", items:[ {type:"pairNumPain", key:"回内", unit:"°", min:0, max:90, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+          { title:"回外", items:[ {type:"pairNumPain", key:"回外", unit:"°", min:0, max:90, step:"1", painOptions:["疼痛あり","疼痛なし"] } ] },
+        ] },
+      { legend: "所見", categoryKey: "所見",
+        items: [
+          { type:"pairRadio", key:"関節腫脹", options:["あり","なし"] },
+          { type:"pairRadio", key:"橈骨遠位の圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"手根骨部に皮下出血", options:["あり","なし"] },
+          { type:"pairRadio", key:"舟状骨の圧痛", options:["あり","なし"] },
+        ] },
+      { legend: "手根管症候群テスト", categoryKey: "手根管症候群テスト",
+        items: [
+          { type:"pairRadio", key:"ファレンテスト", options:["+","-"] },
+          { type:"pairRadio", key:"Tinelサイン", options:["+","-"] },
+          { type:"pairRadio", key:"パーフェクトO", options:["可能","不可能"] },
+          { type:"pairRadio", key:"母指球の萎縮", options:["+","-"] },
+        ] },
+      { legend: "前骨間神経麻痺テスト", categoryKey: "前骨間神経麻痺テスト",
+        items: [ { type:"pairRadio", key:"ティアドロップサイン", options:["+","-"] } ] },
+      { legend: "TFCCテスト", categoryKey: "TFCCテスト",
+        items: [ { type:"pairRadio", key:"スクイーズテスト", options:["+","-"] } ] },
+      { legend: "ドケルバン病", categoryKey: "ドケルバン病",
+        items: [ { type:"pairRadio", key:"フィンケルシュタインテスト", options:["+","-"] } ] },
+    ]
+  },
+
+  /* ばね指 */
+  {
+    partLabel: "〈ばね指〉",
+    fieldsets: [
+      { legend: "腱鞘の肥厚", categoryKey: "腱鞘の肥厚",
+        items: [
+          { type:"pairRadio", key:"母指", options:["あり","なし"] },
+          { type:"pairRadio", key:"示指", options:["あり","なし"] },
+          { type:"pairRadio", key:"中指", options:["あり","なし"] },
+          { type:"pairRadio", key:"環指", options:["あり","なし"] },
+          { type:"pairRadio", key:"小指", options:["あり","なし"] },
+        ] },
+    ]
+  },
+
+  /* 腰椎 */
+  {
+    partLabel: "〈腰椎〉",
+    fieldsets: [
+      { legend: "所見", categoryKey: "所見",
+        items: [ { type:"singleRadio", key:"叩打痛", options:["あり","なし"] } ] },
+      { legend: "ROM", categoryKey: "ROM",
+        items: [
+          { type:"radio", key:"屈曲", options:["OK","制限あり","疼痛あり"] },
+          { type:"radio", key:"伸展", options:["OK","制限あり","疼痛あり"] },
+        ] },
+      { legend: "テスト", categoryKey: "テスト",
+        items: [
+          { type:"pairRadio", key:"Sitting root test", options:["+","-"] },
+          { type:"singleRadio", key:"間欠性跛行", options:["あり","なし"] },
+        ] },
+      { legend: "知覚", categoryKey: "知覚",
+        items: [ { type:"singleRadio", key:"知覚", options:["正常","異常"] } ] }, /* 除外 */
+      { legend: "MMT", categoryKey: "MMT",
+        items: [
+          { type:"pairRadio", key:"EHL", options:["0","1","2","3","4","5"] },
+          { type:"pairRadio", key:"EDL", options:["0","1","2","3","4","5"] },
+          { type:"pairRadio", key:"TA",  options:["0","1","2","3","4","5"] },
+          { type:"pairRadio", key:"Quad",options:["0","1","2","3","4","5"] },
+        ] },
+    ]
+  },
+
+  /* 股関節（初期値なし） */
+  {
+    partLabel: "〈股関節〉",
+    fieldsets: [
+      { legend: "ROM（デフォルト値なし）", categoryKey: "ROM",
+        groups: [
+          { title:"屈曲", items:[ {type:"pairNumber", key:"屈曲", unit:"°", step:"1"} ] },
+          { title:"外転", items:[ {type:"pairNumber", key:"外転", unit:"°", step:"1"} ] },
+          { title:"外旋", items:[ {type:"pairNumber", key:"外旋", unit:"°", step:"1"} ] },
+          { title:"内旋", items:[ {type:"pairNumber", key:"内旋", unit:"°", step:"1"} ] },
+        ] },
+    ]
+  },
+
+  /* 膝関節（初期値なし） */
+  {
+    partLabel: "〈膝関節〉",
+    fieldsets: [
+      { legend: "ROM（デフォルト値なし）", categoryKey: "ROM",
+        groups: [
+          { title:"屈曲", items:[ {type:"pairNumber", key:"屈曲", unit:"°", step:"1"} ] },
+          { title:"伸展", items:[ {type:"pairNumber", key:"伸展", unit:"°", step:"1"} ] },
+        ] },
+      { legend: "所見", categoryKey: "所見",
+        items: [
+          { type:"pairRadio", key:"内側の関節裂隙の疼痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"PB", options:["+","-"] },
+        ] },
+      { legend: "テスト", categoryKey: "テスト",
+        items: [
+          { type:"pairRadio", key:"McMurray", options:["+","-"] },
+          { type:"pairRadio", key:"Apley Grinding", options:["+","-"] },
+          { type:"pairRadio", key:"Lachman", options:["+","-"] },
+        ] },
+    ]
+  },
+
+  /* 足関節（語尾を“圧痛”等に統一） */
+  {
+    partLabel: "〈足関節〉",
+    fieldsets: [
+      { legend: "足関節腫脹", categoryKey: "足関節腫脹",
+        items: [ { type:"pairRadio", key:"関節腫脹", options:["あり","なし"] } ] },
+      { legend: "痛み圧痛", categoryKey: "痛み圧痛",
+        items: [
+          { type:"pairRadio", key:"外果圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"前脛腓靱帯圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"前距腓靱帯圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"足根洞圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"踵腓骨靭帯圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"二分靭帯圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"第５中足骨圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"内果圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"外脛骨圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"後脛骨筋腱圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"足関節内側後方の圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"足関節内側前方の圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"アキレス腱周囲の圧痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"足関節内側前方の痛み", options:["あり","なし"] }, /* プロンプト準拠：痛み */
+        ] },
+      { legend: "ROM", categoryKey: "ROM",
+        groups: [
+          { title:"背屈", items:[ {type:"pairNumber", key:"背屈", unit:"°", step:"1"} ] },
+          { title:"底屈", items:[ {type:"pairNumber", key:"底屈", unit:"°", step:"1"} ] },
+          { title:"内返し", items:[ {type:"pairNumber", key:"内返し", unit:"°", step:"1"} ] },
+          { title:"外返し", items:[ {type:"pairNumber", key:"外返し", unit:"°", step:"1"} ] },
+        ] },
+      { legend: "変形", categoryKey: "変形",
+        items: [
+          { type:"pairRadio", key:"外反母趾", options:["あり","なし"] },
+          { type:"pairRadio", key:"扁平足", options:["あり","なし"] },
+          { type:"pairRadio", key:"踵外反矯正", options:["可能","不可能"] },
+        ] },
+    ]
+  },
+
+  /* 交通事故記録 */
+  {
+    partLabel: "〈交通事故記録〉",
+    fieldsets: [
+      { legend: "自覚症状", categoryKey: "自覚症状",
+        items: [
+          { type:"singleRadio", key:"頭痛", options:["あり","なし"] },
+          { type:"singleRadio", key:"項頚部痛", options:["あり","なし"] },
+          { type:"singleRadio", key:"背部痛", options:["あり","なし"] },
+          { type:"singleRadio", key:"腰痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"上肢しびれ/放散痛", options:["あり","なし"] },
+          { type:"pairRadio", key:"下肢しびれ/放散痛", options:["あり","なし"] },
+          { type:"singleRadio", key:"めまい/ふらつき感", options:["あり","なし"] },
+          { type:"singleRadio", key:"悪心/嘔気", options:["あり","なし"] },
+        ] },
+      { legend: "就労状況", categoryKey: "就労状況",
+        items: [ { type:"singleRadio", key:"休職の有無", options:["あり","なし"] } ] },
+    ]
+  },
+];
+
+/* =========================
+ * DOMヘルパ
+ * ========================= */
+const $root = document.getElementById("form-root");
+function el(tag, attrs={}, ...children){
+  const node = document.createElement(tag);
+  Object.entries(attrs).forEach(([k,v])=>{
+    if(k==="class") node.className = v;
+    else if(k==="for") node.htmlFor = v;
+    else if(k.startsWith("data-")) node.setAttribute(k, v);
+    else if(k==="title") node.title = v;
+    else node[k]=v;
+  });
+  children.forEach(c=>{
+    if(typeof c === "string") node.appendChild(document.createTextNode(c));
+    else if(c) node.appendChild(c);
+  });
+  return node;
+}
+function radio(name, value, id){ return el("label",{}, el("input",{type:"radio",name,value,id}), value); }
+function numberInput(id, {min, max, step, placeholder}={}){
+  const attrs = {type:"number", id, inputMode:"decimal"};
+  if(min!=null) attrs.min=min;
+  if(max!=null) attrs.max=max;
+  if(step!=null) attrs.step=step;
+  attrs.placeholder = placeholder ?? "";
+  return el("input", attrs);
+}
+
+/* =========================
+ * フォーム構築
+ * ========================= */
+function buildForm(){
+  schema.forEach((section, sIdx)=>{
+    $root.appendChild(el("div",{class:"section-title"}, section.partLabel));
+    section.fieldsets.forEach((fs, fIdx)=>{
+      const fsEl = el("fieldset");
+      fsEl.appendChild(el("legend",{}, fs.legend));
+
+      if(fs.items){
+        fs.items.forEach((it, iIdx)=>{
+          if(it.type==="radio"){
+            const name = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            const row = el("div",{class:"row"}, el("div",{class:"group-title"}, it.key));
+            const choices = el("div",{class:"radio-list"});
+            it.options.forEach((opt,oi)=> choices.appendChild(radio(name, opt, `${name}_${oi}`)));
+            row.appendChild(choices); fsEl.appendChild(row);
+
+          }else if(it.type==="mmtNum"){
+            const id = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            fsEl.appendChild(el("div",{class:"row inline"},
+              el("label",{for:id}, `${it.key}：`),
+              numberInput(id,{min:it.min,max:it.max,step:it.step,placeholder:"0-5"})
+            ));
+
+          }else if(it.type==="singleRadio"){
+            const name = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            const row = el("div",{class:"row"}, el("div",{class:"group-title"}, it.key));
+            const choices = el("div",{class:"radio-list"});
+            it.options.forEach((opt,oi)=> choices.appendChild(radio(name, opt, `${name}_${oi}`)));
+            row.appendChild(choices); fsEl.appendChild(row);
+
+          }else if(it.type==="pairRadio"){
+            const nameR = `s${sIdx}_f${fIdx}_i${iIdx}_R`;
+            const nameL = `s${sIdx}_f${fIdx}_i${iIdx}_L`;
+            const group = el("div",{class:"group"});
+            group.appendChild(el("div",{class:"group-title"}, it.key));
+            const pair = el("div",{class:"pair"});
+            const right = el("div",{class:"right"}); right.appendChild(el("label",{},"右："));
+            it.options.forEach((opt,oi)=> right.appendChild(radio(nameR, opt, `${nameR}_${oi}`)));
+            const left = el("div",{class:"left"}); left.appendChild(el("label",{},"左："));
+            it.options.forEach((opt,oi)=> left.appendChild(radio(nameL, opt, `${nameL}_${oi}`)));
+            pair.appendChild(right); pair.appendChild(left); group.appendChild(pair); fsEl.appendChild(group);
+          }
+        });
+      }
+
+      if(fs.groups){
+        fs.groups.forEach((grp, gi)=>{
+          const group = el("div",{class:"group"});
+          group.appendChild(el("div",{class:"group-title"}, grp.title));
+          grp.items.forEach((it, iIdx)=>{
+            if(it.type==="number+pain"){
+              const idVal = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_val`;
+              const idPain = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_pain`;
+              const row = el("div",{class:"row inline"},
+                el("label",{for:idVal}, `${it.key}：`),
+                numberInput(idVal,{min:it.min,max:it.max,step:it.step}),
+                el("span",{}, it.unit),
+                el("span",{},"／ 疼痛："),
+                (()=>{
+                  const wrap = el("span",{class:"radio-list"});
+                  it.painOptions.forEach((opt,oi)=> wrap.appendChild(radio(idPain, opt, `${idPain}_${oi}`)));
+                  return wrap;
+                })()
+              );
+              group.appendChild(row);
+
+            }else if(it.type==="pairNumber"){
+              const idR = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_R`;
+              const idL = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_L`;
+              const pair = el("div",{class:"pair"});
+              const right = el("div",{class:"right"},
+                el("label",{for:idR},"右："), numberInput(idR,{step:it.step}), el("span",{}, it.unit||"")
+              );
+              const left = el("div",{class:"left"},
+                el("label",{for:idL},"左："), numberInput(idL,{step:it.step}), el("span",{}, it.unit||"")
+              );
+              pair.appendChild(right); pair.appendChild(left); group.appendChild(pair);
+
+            }else if(it.type==="pairNumPain"){
+              const idR = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_R`;
+              const idL = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_L`;
+              const nameRP = `${idR}_pain`, nameLP = `${idL}_pain`;
+              const pair = el("div",{class:"pair"});
+
+              const right = el("div",{class:"right"});
+              right.appendChild(el("label",{for:idR},"右："));
+              right.appendChild(numberInput(idR,{min:it.min,max:it.max,step:it.step}));
+              right.appendChild(el("span",{}, it.unit||""));
+              right.appendChild(el("span",{},"／ 疼痛："));
+              it.painOptions.forEach((opt,oi)=> right.appendChild(radio(nameRP, opt, `${nameRP}_${oi}`)));
+
+              const left = el("div",{class:"left"});
+              left.appendChild(el("label",{for:idL},"左："));
+              left.appendChild(numberInput(idL,{min:it.min,max:it.max,step:it.step}));
+              left.appendChild(el("span",{}, it.unit||""));
+              left.appendChild(el("span",{},"／ 疼痛："));
+              it.painOptions.forEach((opt,oi)=> left.appendChild(radio(nameLP, opt, `${nameLP}_${oi}`)));
+
+              pair.appendChild(right); pair.appendChild(left); group.appendChild(pair);
+            }
+          });
+          fsEl.appendChild(group);
+        });
+      }
+
+      $root.appendChild(fsEl);
+    });
+  });
+}
+
+/* =========================
+ * 値取得ユーティリティ
+ * ========================= */
+function getRadioValue(name){
+  const el = document.querySelector(`input[name="${CSS.escape(name)}"]:checked`);
+  return el ? el.value : "";
+}
+function getByIdValue(id){
+  const el = document.getElementById(id);
+  if(!el) return "";
+  return el.value ?? "";
+}
+
+/* =========================
+ * 出力生成
+ * - 左右ペア：1行ごと
+ * - 単独：カテゴリ内で1行に集約
+ * - 見出しはカテゴリ最初の行のみ
+ * - 「知覚」は除外
+ * ========================= */
+function generateOutput(){
+  const sectionLines = [];
+  let anyInput = false;
+
+  schema.forEach((section, sIdx)=>{
+    const perCategoryBlocks = [];
+
+    section.fieldsets.forEach((fs, fIdx)=>{
+      const cat = fs.categoryKey || "";
+      const pairLines = [];
+      const singleChunks = [];
+
+      // items
+      if(fs.items){
+        fs.items.forEach((it, iIdx)=>{
+          if(it.type==="radio"){
+            if(excludeKeys.has(it.key)) return;
+            const name = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            const val = getRadioValue(name);
+            if(val) singleChunks.push(`${it.key}：${val}`);
+
+          }else if(it.type==="mmtNum"){
+            const id = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            const val = getByIdValue(id);
+            if(val!=="") singleChunks.push(`${it.key}：${val}`);
+
+          }else if(it.type==="singleRadio"){
+            if(excludeKeys.has(it.key)) return;
+            const name = `s${sIdx}_f${fIdx}_i${iIdx}`;
+            const val = getRadioValue(name);
+            if(val) singleChunks.push(`${it.key}：${val}`);
+
+          }else if(it.type==="pairRadio"){
+            const nameR = `s${sIdx}_f${fIdx}_i${iIdx}_R`;
+            const nameL = `s${sIdx}_f${fIdx}_i${iIdx}_L`;
+            const vr = getRadioValue(nameR);
+            const vl = getRadioValue(nameL);
+            if(vr || vl){
+              const parts=[];
+              if(vr) parts.push(`右: ${vr}`);
+              if(vl) parts.push(`左: ${vl}`);
+              pairLines.push(`${it.key} ${parts.join(SEP)}`);
+            }
+          }
+        });
+      }
+
+      // groups
+      if(fs.groups){
+        fs.groups.forEach((grp, gi)=>{
+          grp.items.forEach((it, iIdx)=>{
+            if(it.type==="number+pain"){
+              const idVal = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_val`;
+              const idPain = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_pain`;
+              const val = getByIdValue(idVal);
+              const pain = getRadioValue(idPain);
+              if(val!=="" || pain){
+                const segs=[];
+                if(val!=="") segs.push(`${it.key}：${val}${it.unit||""}`);
+                if(pain) segs.push(`疼痛：${pain}`);
+                singleChunks.push(segs.join(" "));
+              }
+
+            }else if(it.type==="pairNumber"){
+              const idR = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_R`;
+              const idL = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_L`;
+              const vr = getByIdValue(idR);
+              const vl = getByIdValue(idL);
+              if(vr!=="" || vl!==""){
+                const parts=[];
+                if(vr!=="") parts.push(`右: ${vr}${it.unit||""}`);
+                if(vl!=="") parts.push(`左: ${vl}${it.unit||""}`);
+                pairLines.push(`${grp.title} ${parts.join(SEP)}`);
+              }
+
+            }else if(it.type==="pairNumPain"){
+              const idR = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_R`;
+              const idL = `s${sIdx}_f${fIdx}_g${gi}_i${iIdx}_L`;
+              const nameRP = `${idR}_pain`, nameLP = `${idL}_pain`;
+              const vr = getByIdValue(idR);
+              const vl = getByIdValue(idL);
+              const pr = getRadioValue(nameRP);
+              const pl = getRadioValue(nameLP);
+              if(vr!=="" || vl!=="" || pr || pl){
+                const parts=[];
+                if(vr!=="") parts.push(`右: ${vr}${it.unit||""}`);
+                if(pr) parts.push(`（疼痛：${pr}）`);
+                if(vl!=="") parts.push(`左: ${vl}${it.unit||""}`);
+                if(pl) parts.push(`（疼痛：${pl}）`);
+                pairLines.push(`${grp.title} ${parts.join(SEP)}`);
+              }
+            }
+          });
+        });
+      }
+
+      if(pairLines.length || singleChunks.length){
+        const catLines = [];
+        if(singleChunks.length) catLines.push(singleChunks.join(SEP)); // 単独は1行に集約
+        pairLines.forEach(line => catLines.push(line));                // ペアは1行ずつ
+        const labeled = [];
+        if(catLines.length){
+          labeled.push(`${cat} ${catLines[0]}`); // 見出しは最初の行のみ
+          for(let i=1;i<catLines.length;i++) labeled.push(catLines[i]);
+        }
+        perCategoryBlocks.push(labeled.join("\n"));
+      }
+    });
+
+    if(perCategoryBlocks.length){
+      anyInput = true;
+      sectionLines.push(section.partLabel + " " + perCategoryBlocks.join("\n"));
+    }
+  });
+
+  document.getElementById("output").value = anyInput ? sectionLines.join("\n") : "入力がありません";
+}
+
+/* =========================
+ * 初期化・イベント
+ * ========================= */
+function resetForm(){
+  // すべての入力をクリア
+  document.querySelectorAll('input[type="radio"]').forEach(inp => inp.checked = false);
+  document.querySelectorAll('input[type="number"]').forEach(inp => inp.value = "");
+  generateOutput();
+}
+
+(function init(){
+  buildForm();
+  generateOutput(); // 初期表示
+
+  document.addEventListener("input", generateOutput);
+  document.getElementById("generateBtn").addEventListener("click", generateOutput);
+  document.getElementById("copyBtn").addEventListener("click", async ()=>{
+    const text = document.getElementById("output").value;
+    try{
+      await navigator.clipboard.writeText(text);
+      alert("出力テキストをコピーしました。");
+    }catch(err){
+      // フォールバック
+      const ta = document.getElementById("output");
+      ta.select();
+      document.execCommand("copy");
+      alert("出力テキストをコピーしました。（フォールバック）");
+    }
+  });
+  document.getElementById("clearBtn").addEventListener("click", resetForm);
+})();
+</script>
+</body>
+</html>
